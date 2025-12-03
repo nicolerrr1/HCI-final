@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FocusQuest — Timer</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<header class="nav-wrap">
+  <div class="nav-inner">
+    <a class="logo" href="index.html" aria-label="FocusQuest home">FOCUSQUEST</a>
+    <nav>
+      <ul class="nav-list">
+        <li><a href="index.html">Home</a></li>
+        <li><a href="timer.html" class="active">Timer</a></li>
+        <li><a href="dashboard.html">Dashboard</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main class="timer-main desktop-first" role="main">
+  <section class="timer-left">
+    <div class="panel neon-panel" id="mainPanel">
+      <div class="tabs" role="tablist" aria-label="Timer modes">
+        <button class="tab active" data-mode="pomodoro" role="tab" aria-selected="true">Pomodoro</button>
+        <button class="tab" data-mode="short" role="tab" aria-selected="false">Short Break</button>
+        <button class="tab" data-mode="long" role="tab" aria-selected="false">Long Break</button>
+      </div>
+
+      <div class="timer-display" aria-live="polite" aria-atomic="true">
+        <div id="time" class="time">25:00</div>
+        <div class="timer-label" id="timerLabel">Work</div>
+      </div>
+
+      <div class="controls" role="group" aria-label="Timer Controls">
+        <button id="startBtn" class="btn-glow" aria-pressed="false">Start</button>
+        <button id="pauseBtn" class="btn-outline" aria-pressed="false" disabled>Pause</button>
+        <button id="resetBtn" class="btn-minimal">Reset</button>
+      </div>
+
+      <div class="settings-row" style="margin-top:12px; display:flex; gap:12px; align-items:center;">
+        <label><input type="checkbox" id="demoMode" /> Demo mode (short durations)</label>
+        <button id="notifPerm" class="btn-outline">Enable Notifications</button>
+      </div>
+    </div>
+
+    <div class="panel neon-panel meta-panel" aria-live="polite">
+      <div class="meta-left">
+        <div class="level-big" id="levelText">Lvl 1</div>
+        <div class="xp-compact">XP: <span id="xpText">0</span></div>
+      </div>
+      <div class="meta-right">
+        <div class="xp-bar compact" aria-hidden="true">
+          <div id="xpFill" class="xp-fill" style="width:0%"></div>
+        </div>
+        <div class="next-level">Next: <span id="nextXP">200</span> XP</div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="timer-right">
+    <div class="panel neon-panel">
+      <h3>Quest Log</h3>
+      <p class="muted">Complete Pomodoro sessions to earn XP and level up. Check achievements on the Dashboard.</p>
+
+      <div class="quest-counters" style="margin-top:12px">
+        <div class="counter">
+          <div class="counter-num" id="sessionsCount">0</div>
+          <div class="counter-label">Sessions</div>
+        </div>
+
+        <div class="counter">
+          <div class="counter-num" id="badgesCount">0</div>
+          <div class="counter-label">Achievements</div>
+        </div>
+      </div>
+
+      <div class="mini-actions" style="margin-top:12px">
+        <button id="claimBadgeBtn" class="claim-btn" disabled>Claim Badge</button>
+      </div>
+    </div>
+
+    <div class="panel neon-panel">
+      <h4>Quick Tips</h4>
+      <ol>
+        <li>Try Demo mode for a short presentation.</li>
+        <li>Space to Start/Pause, ← → to switch modes, 'r' to reset.</li>
+        <li>Progress is stored locally in your browser.</li>
+      </ol>
+    </div>
+  </aside>
+</main>
+
+<footer class="site-footer">
+  <p>FocusQuest • Gamified Pomodoro • Full functionality</p>
+</footer>
+
+<script>
+(function() {
+  // Elements
+  const timeEl = document.getElementById('time');
+  const startBtn = document.getElementById('startBtn');
+  const pauseBtn = document.getElementById('pauseBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const tabs = document.querySelectorAll('.tab');
+  const demoCheckbox = document.getElementById('demoMode');
+  const timerLabel = document.getElementById('timerLabel');
+  const xpText = document.getElementById('xpText');
+  const levelText = document.getElementById('levelText');
+  const xpFill = document.getElementById('xpFill');
+  const nextXP = document.getElementById('nextXP');
+  const sessionsCount = document.getElementById('sessionsCount');
+  const badgesCount = document.getElementById('badgesCount');
+  const claimBadgeBtn = document.getElementById('claimBadgeBtn');
+  const notifPermBtn = document.getElementById('notifPerm');
+  const mainPanel = document.getElementById('mainPanel');
+
+  // Constants
+  const XP_PER_SESSION = 50;
+  const DURATIONS = { pomodoro: 25*60, short: 5*60, long: 15*60 }; // seconds
+  const DEMO_DURATIONS = { pomodoro: 60, short: 20, long: 40 }; // seconds
+  const STORAGE_TIMER_KEY = 'fq_timer_state';
+  const STORAGE_META_KEYS = { xp: 'fq_xp', sessions: 'fq_sessions', badges: 'fq_badges' };
+  let mode = 'pomodoro';
+  let remaining = DURATIONS[mode];
+  let isRunning = false;
+  let timerInterval = null;
+
+  // WebAudio beep
+  function beep(volume=0.05, type='sine', duration=0.18) {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.value = 880;
+      g.gain.value = volume;
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start();
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+      setTimeout(()=>{ o.stop(); ctx.close(); }, duration*1000 + 50);
+    } catch(e) {
+      // silent fail if audio context blocked
+      console.warn('Audio failed', e);
+    }
+  }
+
+  // Notification helper
+  function notify(title, body) {
+    if (!("Notification" in window)) return;
+    if (Notification.permission === "granted") {
+      new Notification(title, { body });
+    }
+  }
+
+  // Storage meta helpers
+  function loadMeta() {
+    const xp = parseInt(localStorage.getItem(STORAGE_META_KEYS.xp) || '0', 10);
+    const sessions = parseInt(localStorage.getItem(STORAGE_META_KEYS.sessions) || '0', 10);
+    const badges = JSON.parse(localStorage.getItem(STORAGE_META_KEYS.badges) || '[]');
+    return { xp, sessions, badges };
+  }
+  function saveMeta(meta) {
+    localStorage.setItem(STORAGE_META_KEYS.xp, String(meta.xp));
+    localStorage.setItem(STORAGE_META_KEYS.sessions, String(meta.sessions));
+    localStorage.setItem(STORAGE_META_KEYS.badges, JSON.stringify(meta.badges));
+    // dispatch custom event so other windows/tabs can react if they don't support storage event
+    window.dispatchEvent(new Event('fq_meta_update'));
+  }
+
+  // Timer persistence helpers
+  function saveTimerState() {
+    const state = { mode, remaining, isRunning, lastUpdated: Date.now(), demo: demoCheckbox.checked };
+    localStorage.setItem(STORAGE_TIMER_KEY, JSON.stringify(state));
+    // also signal
+    window.dispatchEvent(new Event('fq_timer_update'));
+  }
+  function loadTimerState() {
+    const raw = localStorage.getItem(STORAGE_TIMER_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch(e) { return null; }
+  }
+
+  function levelForXP(xp) { return Math.floor(xp / 200) + 1; }
+  function nextLevelXP(xp) { return levelForXP(xp) * 200; }
+
+  // UI update functions
+  function updateMetaUI() {
+    const meta = loadMeta();
+    xpText.textContent = meta.xp;
+    levelText.textContent = 'Lvl ' + levelForXP(meta.xp);
+    nextXP.textContent = nextLevelXP(meta.xp);
+    const percent = Math.min(100, Math.round((meta.xp % 200) / 200 * 100));
+    xpFill.style.width = percent + '%';
+    sessionsCount.textContent = meta.sessions;
+    badgesCount.textContent = meta.badges.length;
+    claimBadgeBtn.disabled = meta.badges.length === 0;
+  }
+
+  function updateButtons() {
+    startBtn.disabled = isRunning;
+    pauseBtn.disabled = !isRunning;
+    startBtn.setAttribute('aria-pressed', String(isRunning));
+    pauseBtn.setAttribute('aria-pressed', String(isRunning));
+  }
+
+  function formatSeconds(sec) {
+    if (sec < 0) sec = 0;
+    const m = Math.floor(sec/60).toString().padStart(2,'0');
+    const s = Math.floor(sec%60).toString().padStart(2,'0');
+    return m + ':' + s;
+  }
+
+  function renderTime() {
+    timeEl.textContent = formatSeconds(Math.round(remaining));
+  }
+
+  function setMode(newMode, save=true) {
+    mode = newMode;
+    tabs.forEach(t => {
+      t.classList.toggle('active', t.dataset.mode === newMode);
+      t.setAttribute('aria-selected', t.dataset.mode === newMode ? 'true' : 'false');
+    });
+    timerLabel.textContent = (newMode === 'pomodoro') ? 'Work' : 'Break';
+    remaining = (demoCheckbox.checked ? DEMO_DURATIONS[newMode] : DURATIONS[newMode]);
+    renderTime();
+    if (save) saveTimerState();
+  }
+
+  // Timer tick uses Date.now() for accuracy
+  function startTimer() {
+    if (isRunning) return;
+    isRunning = true;
+    updateButtons();
+    const tick = () => {
+      const stored = loadTimerState();
+      // compute remaining based on lastUpdated and previous remaining
+      const prev = stored || { remaining, lastUpdated: Date.now() };
+      const elapsed = (Date.now() - prev.lastUpdated) / 1000.0;
+      remaining = Math.max(0, prev.remaining - elapsed);
+      prev.lastUpdated = Date.now();
+      prev.remaining = remaining;
+      // Persist the updated remaining+lastUpdated
+      localStorage.setItem(STORAGE_TIMER_KEY, JSON.stringify(prev));
+      renderTime();
+      if (remaining <= 0) {
+        onSessionComplete();
+      }
+    };
+    // run immediately
+    tick();
+    clearInterval(timerInterval);
+    timerInterval = setInterval(tick, 500); // half-second granularity
+    saveTimerState();
+  }
+
+  function pauseTimer() {
+    if (!isRunning) return;
+    isRunning = false;
+    clearInterval(timerInterval);
+    // Update persisted remaining to current time
+    const stored = loadTimerState() || {};
+    stored.remaining = remaining;
+    stored.lastUpdated = Date.now();
+    stored.isRunning = false;
+    localStorage.setItem(STORAGE_TIMER_KEY, JSON.stringify(stored));
+    updateButtons();
+    window.dispatchEvent(new Event('fq_timer_update'));
+  }
+
+  function resetTimer() {
+    isRunning = false;
+    clearInterval(timerInterval);
+    remaining = (demoCheckbox.checked ? DEMO_DURATIONS[mode] : DURATIONS[mode]);
+    renderTime();
+    saveTimerState();
+    updateButtons();
+  }
+
+  function onSessionComplete() {
+    // stop interval first
+    clearInterval(timerInterval);
+    isRunning = false;
+    updateButtons();
+
+    // Sound + visual
+    beep(0.06, 'sine', 0.22);
+    mainPanel.classList.add('pulse-complete');
+    setTimeout(()=> mainPanel.classList.remove('pulse-complete'), 900);
+
+    // Notification
+    notify('FocusQuest', (mode === 'pomodoro') ? 'Pomodoro complete! +50 XP' : 'Break finished!');
+
+    // Award XP if pomodoro
+    if (mode === 'pomodoro') {
+      const meta = loadMeta();
+      meta.xp += XP_PER_SESSION;
+      meta.sessions += 1;
+      // achievements thresholds
+      if (meta.sessions === 1) meta.badges.push('First Focus');
+      if (meta.sessions === 3) meta.badges.push('Consistency');
+      if (meta.sessions === 5) meta.badges.push('Focus Master');
+      saveMeta(meta);
+      updateMetaUI();
+    }
+
+    // Reset remaining for current mode
+    remaining = (demoCheckbox.checked ? DEMO_DURATIONS[mode] : DURATIONS[mode]);
+    // Save timer state as not running
+    saveTimerState();
+    renderTime();
+    window.dispatchEvent(new Event('fq_timer_update'));
+  }
+
+  // Claim badge (simple visual)
+  claimBadgeBtn.addEventListener('click', () => {
+    const meta = loadMeta();
+    if (meta.badges.length > 0) {
+      const claimed = meta.badges.shift();
+      saveMeta(meta);
+      updateMetaUI();
+      alert('Badge claimed: ' + claimed);
+    }
+  });
+
+  // Notification permission
+  notifPermBtn.addEventListener('click', async () => {
+    if (!("Notification" in window)) {
+      alert('Notifications are not supported by this browser.');
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      alert('Notifications enabled. You will receive a notification when a session completes.');
+    } else {
+      alert('Notifications blocked or denied.');
+    }
+  });
+
+  // Tabs
+  tabs.forEach(t => t.addEventListener('click', () => {
+    setMode(t.dataset.mode);
+    // stop running when switching
+    pauseTimer();
+  }));
+
+  // Buttons
+  startBtn.addEventListener('click', () => {
+    // if already running, ignore
+    if (isRunning) return;
+    // update state so startTimer uses correct lastUpdated
+    saveTimerState();
+    startTimer();
+    updateButtons();
+  });
+  pauseBtn.addEventListener('click', () => pauseTimer());
+  resetBtn.addEventListener('click', () => resetTimer());
+
+  // Demo mode toggles durations
+  demoCheckbox.addEventListener('change', () => {
+    // recalc remaining relative to demo vs normal
+    const wasRunning = isRunning;
+    pauseTimer();
+    remaining = (demoCheckbox.checked ? DEMO_DURATIONS[mode] : DURATIONS[mode]);
+    renderTime();
+    saveTimerState();
+    if (wasRunning) startTimer();
+  });
+
+  // Keyboard shortcuts
+  window.addEventListener('keydown', (e) => {
+    const activeTag = document.activeElement ? document.activeElement.tagName : '';
+    // avoid when typing in input etc.
+    if (activeTag === 'INPUT' || activeTag === 'TEXTAREA') return;
+    if (e.code === 'Space') {
+      e.preventDefault();
+      if (isRunning) pauseTimer(); else { saveTimerState(); startTimer(); }
+    } else if (e.code === 'ArrowLeft') {
+      // previous mode
+      const order = ['pomodoro','short','long'];
+      let i = order.indexOf(mode);
+      i = (i - 1 + order.length) % order.length;
+      setMode(order[i]);
+      pauseTimer();
+    } else if (e.code === 'ArrowRight') {
+      const order = ['pomodoro','short','long'];
+      let i = order.indexOf(mode);
+      i = (i + 1) % order.length;
+      setMode(order[i]);
+      pauseTimer();
+    } else if (e.key === 'r' || e.key === 'R') {
+      resetTimer();
+    }
+  });
+
+  // Storage events: keep UI in sync across tabs
+  window.addEventListener('storage', (e) => {
+    if (e.key === STORAGE_TIMER_KEY || [STORAGE_META_KEYS.xp, STORAGE_META_KEYS.sessions, STORAGE_META_KEYS.badges].includes(e.key)) {
+      restoreStateFromStorage();
+    }
+  });
+  // custom events also trigger updates
+  window.addEventListener('fq_meta_update', updateMetaUI);
+  window.addEventListener('fq_timer_update', restoreStateFromStorage);
+
+  // Restore timer and meta on load
+  function restoreStateFromStorage() {
+    // restore meta
+    updateMetaUI();
+    // restore timer
+    const stored = loadTimerState();
+    if (stored) {
+      mode = stored.mode || 'pomodoro';
+      demoCheckbox.checked = !!stored.demo;
+      // compute remaining if it was running
+      if (stored.isRunning) {
+        const elapsed = (Date.now() - (stored.lastUpdated || Date.now())) / 1000.0;
+        remaining = Math.max(0, (stored.remaining || (DEMO_DURATIONS[mode] || DURATIONS[mode])) - elapsed);
+        isRunning = true;
+        // start accurate ticking
+        startTimer();
+      } else {
+        remaining = stored.remaining || (demoCheckbox.checked ? DEMO_DURATIONS[mode] : DURATIONS[mode]);
+        isRunning = false;
+        clearInterval(timerInterval);
+      }
+      // reflect UI
+      tabs.forEach(t => {
+        t.classList.toggle('active', t.dataset.mode === mode);
+        t.setAttribute('aria-selected', t.dataset.mode === mode ? 'true' : 'false');
+      });
+      timerLabel.textContent = (mode === 'pomodoro') ? 'Work' : 'Break';
+      renderTime();
+      updateButtons();
+    } else {
+      // no state stored
+      setMode(mode, true);
+      updateButtons();
+      updateMetaUI();
+    }
+  }
+
+  // initial meta init if not present
+  (function initMetaIfNeeded(){
+    if (!localStorage.getItem(STORAGE_META_KEYS.xp)) {
+      saveMeta({ xp: 0, sessions: 0, badges: [] });
+    }
+  })();
+
+  // init
+  restoreStateFromStorage();
+
+})();
+</script>
+</body>
+</html>
