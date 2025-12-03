@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FocusQuest • Achievements</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="logo">FocusQuest</h1>
+      <nav aria-label="Main Navigation">
+        <ul class="nav-list">
+          <li><a href="index.html" class="nav-link">Home</a></li>
+          <li><a href="timer.html" class="nav-link">Timer</a></li>
+          <li><a href="achievements.html" class="nav-link active">Achievements</a></li>
+        </ul>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container achievements-page" id="main">
+    <section class="achievement-summary" aria-labelledby="ach-title">
+      <h2 id="ach-title">Your Achievements</h2>
+
+      <div class="summary-cards">
+        <div class="summary-card">
+          <h3 id="ach-xp">XP: 0</h3>
+          <p>Total Experience</p>
+        </div>
+        <div class="summary-card">
+          <h3 id="ach-level">Level 1</h3>
+          <p>Current Level</p>
+        </div>
+        <div class="summary-card">
+          <h3 id="ach-sessions">0</h3>
+          <p>Completed Pomodoros</p>
+        </div>
+      </div>
+
+      <h3 class="subheading">Unlocked Badges</h3>
+      <div class="badges-grid" id="ach-badges">
+        <!-- injected by JS -->
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>Celebrate small wins</p>
+    </div>
+  </footer>
+
+  <script src="script.js" defer></script>
+</body>
+</html>

@@ -2,64 +2,60 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>FocusQuest — Start Your Quest</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>FocusQuest • Start Your Quest</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="nav-wrap">
-    <div class="nav-inner">
-      <a class="logo" href="index.html" aria-label="FocusQuest home">FOCUSQUEST</a>
-      <nav>
+  <header class="site-header">
+    <div class="container header-inner">
+      <h1 class="logo" aria-label="FocusQuest">FocusQuest </h1>
+      <nav aria-label="Main Navigation">
         <ul class="nav-list">
-          <li><a href="index.html" class="active">Home</a></li>
-          <li><a href="timer.html">Timer</a></li>
-          <li><a href="dashboard.html">Dashboard</a></li>
+          <li><a href="index.html" class="nav-link active">Home</a></li>
+          <li><a href="timer.html" class="nav-link">Timer</a></li>
+          <li><a href="achievements.html" class="nav-link">Achievements</a></li>
         </ul>
       </nav>
     </div>
   </header>
 
-  <main class="hero desktop-first">
-    <section class="hero-left">
-      <h1 class="neon-title">Embark on your focus quest</h1>
-      <p class="hero-sub">A gamified Pomodoro experience with XP, levels, and achievements — all in a neon cyberpunk UI.</p>
-
-      <div class="hero-actions">
-        <a class="btn-neon" href="timer.html" role="button">Start Quest</a>
-        <a class="btn-outline" href="dashboard.html" role="button">View Dashboard</a>
+  <main class="hero container" id="main">
+    <section class="hero-card" role="region" aria-labelledby="hero-title">
+      <h2 id="hero-title" class="hero-title">Become a Focus Hero 🌸</h2>
+      <p class="hero-sub">Complete Pomodoro sessions, earn XP, level up, and unlock cute badges along the way.</p>
+      <div class="cta-row">
+        <a href="timer.html" class="btn btn-primary" id="start-quest">Start Focus Quest</a>
+        <a href="achievements.html" class="btn btn-soft">See Achievements</a>
       </div>
-
-      <ul class="features">
-        <li>💠 Gamified Pomodoro — earn XP per completed session</li>
-        <li>⚡ Futuristic Cyber UI — neon glow & subtle animations</li>
-        <li>🔒 Local progress saved to your browser</li>
-      </ul>
-    </section>
-
-    <aside class="hero-right">
-      <div class="card preview-card" aria-hidden="true">
-        <div class="hud">
-          <div class="hud-top">
-            <span class="level-badge">Lvl 1</span>
-            <span class="xp-label">XP 0</span>
-          </div>
-          <div class="preview-timer">25:00</div>
-          <div class="xp-bar">
-            <div class="xp-fill" style="width: 0%"></div>
-          </div>
-          <div class="preview-actions">
-            <button class="mini-btn">Start</button>
-            <button class="mini-btn">Pause</button>
-          </div>
+      <div class="mini-stats" aria-hidden="false">
+        <div class="stat-card">
+          <h3 class="stat-value" id="home-xp">XP: 0</h3>
+          <p class="stat-label">Total XP</p>
+        </div>
+        <div class="stat-card">
+          <h3 class="stat-value" id="home-level">Lvl: 1</h3>
+          <p class="stat-label">Current Level</p>
+        </div>
+        <div class="stat-card">
+          <h3 class="stat-value" id="home-sessions">Pomos: 0</h3>
+          <p class="stat-label">Completed</p>
         </div>
       </div>
-      <p class="preview-note">Demo view — full functionality on the Timer page.</p>
-    </aside>
+    </section>
+
+    <section class="about" aria-labelledby="about-title">
+      <h3 id="about-title">What is FocusQuest?</h3>
+      <p>FocusQuest gamifies the Pomodoro technique. A completed Pomodoro awards XP — earn levels and cute badges as you improve your focus.</p>
+    </section>
   </main>
 
   <footer class="site-footer">
-    <p>FocusQuest • Built for HCI Final Project • Cyber UI</p>
+    <div class="container">
+      <p>FocusQuest</p>
+    </div>
   </footer>
+
+  <script src="script.js" defer></script>
 </body>
 </html>
